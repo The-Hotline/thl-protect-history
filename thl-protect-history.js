@@ -2,8 +2,8 @@
 // National Domestic Violence Hotline Protect History Utility
 // author: Chad Cleveland | National Domestic Violence Hotline | TheHotline.org
 
-// Last Modified: '2026-07-10 12:47';
-const thl_protectHistoryLastModified = '2026-07-10 12:47';
+// Last Modified: '2026-07-10 13:24';
+const thl_protectHistoryLastModified = '2026-07-10 13:24';
 
 /*
 Copyright (c) Effective as of timestamp above. National Domestic Violence Hotline.
@@ -54,12 +54,21 @@ const THL_PROTECT_HISTORY_SESSION_KEY = "thl_protect_history_enabled";
 const THL_PROTECT_HISTORY_DISMISSED_KEY = "thl_protect_history_dismissed";
 
 const THL_PROTECT_HISTORY_CSS = `/* National Domestic Violence Hotline - Protect History Utility CSS */
+#thl-protect-history-bar,
+#thl-protect-history-bar * {
+    all: revert;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
 #thl-protect-history-bar {
     padding: 0;
     background-color: #e3e3e3;
     font-size: 13px;
+    font-family: inherit;
 }
 #thl-protect-history-bar span {
+    font-family: inherit;
     color: inherit;
     font: inherit;
     font-weight: bold;
@@ -71,13 +80,15 @@ const THL_PROTECT_HISTORY_CSS = `/* National Domestic Violence Hotline - Protect
     vertical-align: bottom;
 }
 #thl-protect-history-bar .thl-protect-history-buttons {
+    font-family: inherit;
     display: inline-block;
     white-space: nowrap;
 }
 
 #thl-protect-history-bar button {
     color: #a93e92;
-    font: inherit;
+    font-family: inherit;
+    font-size: 14px;
     border: none;
     background: none;
     text-decoration: underline;
