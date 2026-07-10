@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <style type="text/css">
+            body {
+                font-family: Arial, sans-serif;
+                margin: 0px;
+            }
+            h1 {
+                color: #333;
+            }
+            p {
+                font-size: 16px;
+                line-height: 1.5;
+            }
+            a {
+                display: block;
+                margin-bottom: 10px;
+                color: #007BFF;
+                text-decoration: none;
+            }
+        </style>
+        <title>THL Protect History Demo</title>
+        <script type="module" src="thl-protect-history.js?bg-color=c9c9c9&btn-color=812eec&text-color=ba5d9c"></script>
+    </head>
+    <body>
+        <h1>THL Protect History Demo</h1>
+        <p>This is a demonstration of the THL Protect History utility. The utility is designed to protect survivors by keeping site navigation out of history..</p>
+        <p>To see the utility in action, try clicking on the links below or opening new tabs programmatically.</p>
+        <a href="demo-3.html">demo-3.html href</a>
+        <a href="demo-3.html" target="_blank">demo-3.html href with target=_blank</a>
+        <div onclick="window.location.href='demo-3.html'">demo-3.html onclick</div>
+        <button id="demo-event-listener">Open demo-3.html in a new tab</button>
+        <script>
+            // Example of programmatically opening a new tab
+            function openNewTab() {
+                window.open('demo-3.html', '_blank');
+            }
+            const elElement = document.getElementById('demo-event-listener');
+            elElement.addEventListener('click', openNewTab);
+        </script>
+    </body>
+</html>

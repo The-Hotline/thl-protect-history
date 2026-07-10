@@ -1,14 +1,13 @@
 # thl-protect-history
 
-A lightweight, dependency-free browser history protection utility from the [National Domestic Violence Hotline](https://www.thehotline.org). Prevents visits to your site from accumulating in the browser's history stack, protecting survivors who may share a device with an abuser.
+A lightweight, dependency-free browser history protection utility from the [National Domestic Violence Hotline](https://www.thehotline.org). Prevents visits to a website from accumulating in the browser's history stack, protecting survivors who may share a device with an abuser.
 
 ---
 
 ## How It Works
 
-When someone visits your site, this utility intercepts navigation — link clicks, programmatic redirects, and new-tab navigations — and replaces each history entry rather than adding to it. By the time a visitor uses your safety exit button, there is no trail of visited pages to trace back through.
+When someone visits a website, visitors can enable this utility to intercept navigation — link clicks, programmatic redirects, and new-tab navigations — and replace each history entry rather than adding to it. By the time a visitor uses the safety exit button, there is no trail of visited pages to trace back through.
 
-A small buffer of neutral pages (Google search results) is also pushed into the history stack on load, so that pressing the browser back button leads away from your site rather than to a previous page on it.
 
 ---
 
@@ -17,10 +16,30 @@ A small buffer of neutral pages (Google search results) is also pushed into the 
 Add the following script tag to the `<head>` of every page on your site:
 
 ```html
-<script src="https://lib.thehotline.us/thl-protect-history/thl-protect-history.js"></script>
+<script type="module" src="https://cdn.thehotline.us/thl-protect-history/thl-protect-history.js"></script>
 ```
 
 No initialization or configuration is required.
+
+---
+
+## Optional Color Parameters
+
+Three optional query parameters let you match the banner to your site's color scheme. All values are **6-digit hex codes without the `#`**.
+
+| Parameter | Applies to | Default |
+|---|---|---|
+| `bg-color` | Banner background | `e3e3e3` |
+| `text-color` | Text color | `333333` |
+| `btn-color` | Button text color | `a93e92` |
+
+Invalid or absent values fall back to the defaults automatically.
+
+**Example:**
+
+```html
+<script type="module" src="https://cdn.thehotline.us/thl-protect-history/thl-protect-history.js?bg-color=c9c9c9&btn-color=812eec&text-color=ba5d9c"></script>
+```
 
 ---
 

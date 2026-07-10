@@ -1,11 +1,9 @@
 // JavaScript file
 // National Domestic Violence Hotline Protect History Utility
 // author: Chad Cleveland | National Domestic Violence Hotline | TheHotline.org
-// copyright: © National Domestic Violence Hotline. All rights reserved. Effective as of timestamp below.
 
-// Last Modified: '2026-06-29 16:01';
-const thl_protectHistoryLastModified = '2026-06-29 16:01';
-console.log("National Domestic Violence Hotline - Protect History Utility.\n   To implement on your site, contact software@thehotline.org", thl_protectHistoryLastModified);
+// Last Modified: '2026-07-10 12:47';
+const thl_protectHistoryLastModified = '2026-07-10 12:47';
 
 /*
 Copyright (c) Effective as of timestamp above. National Domestic Violence Hotline.
@@ -17,7 +15,6 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 */
-
 
 /*  
   Protect History Utility
@@ -33,25 +30,200 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
   - Vendor or third-party scripts that navigate before DOMContentLoaded or window.load may not be caught. Audit third-party scripts regularly.
   - If a URL cannot be safely extracted (variable, template literal, or function call rather than a plain string literal), the element is left completely untouched — original behavior is preserved. A console warning is logged for manual review.
   
-  User-intentional new tabs (Ctrl+click, Cmd+click, middle-click, right-click > "Open in new tab", long-press) are always respected and never interfered with.
+  User-intentional new tabs (Ctrl+click, Cmd+click, middle-click, right-click > "Open in new tab", long-press) are respected.
 */
+const THL_PROTECT_HISTORY_DEBUG_MODE = true;
 
-thl_initProtectHistory();
+const THL_PROTECT_HISTORY_NOTICE_EN = "<span>For added privacy: Hide your history.</span><div class='thl-protect-history-buttons'><button id='thl-protect-history-toggle'>Enable</button> <button id='thl-protect-history-dismiss'>Dismiss</button> <button id='thl-protect-history-learn-more'>Learn More</button></div>";
 
-function thl_initProtectHistory() {
-    thl_bufferHistory();
-    thl_overrideWindowOpen();
-    document.addEventListener("DOMContentLoaded", () => thl_catchClicks());
-    window.addEventListener("load", () => thl_catchInlineClickEvents());
+const THL_PROTECT_HISTORY_ENABLED_NOTICE_EN = "<span>History protection is enabled. To disable it, reload the page.</span><div class='thl-protect-history-buttons'><button id='thl-protect-history-dismiss'>Dismiss</button> <button id='thl-protect-history-learn-more'>Learn More</button></div>";
+
+const THL_PROTECT_HISTORY_LEARN_MORE_EN = "History protection keeps the pages you visit here from showing up in your browser's history — so if someone else uses this device later, they won't see where you've been. To disable it, reload the page.\n\nTo fully clear your visit, use the exit button when you're done.\n\nHeads up: the back button won't work while this is on, pages opened in a new tab or window will show in history, and it may not catch every link. So, for extra privacy, pair it with your browser's private or incognito mode and manually clear your history when done.\n\nBrought to you by the National Domestic Violence Hotline.";
+
+const THL_PROTECT_HISTORY_NOTICE_ES = "<span>Para mayor privacidad: Oculta tu historial.</span><div class='thl-protect-history-buttons'><button id='thl-protect-history-toggle'>Activar</button> <button id='thl-protect-history-dismiss'>Descartar</button> <button id='thl-protect-history-learn-more'>Más información</button></div>";
+
+const THL_PROTECT_HISTORY_ENABLED_NOTICE_ES = "<span>La protección de historial está activada. Para desactivarla, recarga la página.</span><div class='thl-protect-history-buttons'><button id='thl-protect-history-dismiss'>Descartar</button> <button id='thl-protect-history-learn-more'>Más información</button></div>";
+
+const THL_PROTECT_HISTORY_LEARN_MORE_ES = "La protección de historial evita que las páginas que visitas aquí aparezcan en el historial de tu navegador — así, si alguien más usa este dispositivo después, no verá dónde has estado. Para desactivarla, recarga la página.\n\nPara borrar tu visita por completo, usa el botón de salida cuando termines.\n\nTen en cuenta: el botón de atrás no funcionará mientras esté activada, las páginas abiertas en una pestaña o ventana nueva sí aparecerán en el historial, y es posible que no detecte todos los enlaces. Para mayor privacidad, combínala con el modo privado o de incógnito de tu navegador y borra tu historial manualmente al terminar.\n\nCortesía de The National Domestic Violence Hotline.";
+
+let THL_PROTECT_HISTORY_NOTICE = THL_PROTECT_HISTORY_NOTICE_EN;
+let THL_PROTECT_HISTORY_ENABLED_NOTICE = THL_PROTECT_HISTORY_ENABLED_NOTICE_EN;
+let THL_PROTECT_HISTORY_LEARN_MORE = THL_PROTECT_HISTORY_LEARN_MORE_EN;
+
+const THL_PROTECT_HISTORY_SESSION_KEY = "thl_protect_history_enabled";
+const THL_PROTECT_HISTORY_DISMISSED_KEY = "thl_protect_history_dismissed";
+
+const THL_PROTECT_HISTORY_CSS = `/* National Domestic Violence Hotline - Protect History Utility CSS */
+#thl-protect-history-bar {
+    padding: 0;
+    background-color: #e3e3e3;
+    font-size: 13px;
+}
+#thl-protect-history-bar span {
+    color: inherit;
+    font: inherit;
+    font-weight: bold;
+    border: none;
+    background: none;
+    text-decoration: none;
+    display: inline-block;
+    margin: 4px 6px;
+    vertical-align: bottom;
+}
+#thl-protect-history-bar .thl-protect-history-buttons {
+    display: inline-block;
+    white-space: nowrap;
 }
 
-function thl_bufferHistory() {
-    // Buffer any uncaught history entries
-    history.pushState(null, "", "https://google.com");
-    history.pushState(null, "", "https://google.com?q=weather");
-    history.pushState(null, "", "https://google.com?q=news");
-    history.pushState(null, "", "https://google.com?q=local+news");
-    history.pushState(null, "", "https://google.com?q=weather");
+#thl-protect-history-bar button {
+    color: #a93e92;
+    font: inherit;
+    border: none;
+    background: none;
+    text-decoration: underline;
+    margin: 0;
+    padding: 0px 12px 4px 6px;
+    cursor: pointer;
+    vertical-align: text-bottom;
+}
+`;
+
+thl_initProtectHistoryUtility();
+function thl_initProtectHistoryUtility() {
+    console.log("National Domestic Violence Hotline - Protect History Utility.\n   To implement on your site, contact software@thehotline.org", thl_protectHistoryLastModified);
+
+    let thl_protectHistoryLanguage = "en";
+    if (location.hostname.includes("espanol.") || location.href.includes("lang=es")) {
+        thl_protectHistoryLanguage = "es";
+    }
+    THL_PROTECT_HISTORY_NOTICE = thl_protectHistoryLanguage === "es" ? THL_PROTECT_HISTORY_NOTICE_ES : THL_PROTECT_HISTORY_NOTICE_EN;
+    THL_PROTECT_HISTORY_ENABLED_NOTICE = thl_protectHistoryLanguage === "es" ? THL_PROTECT_HISTORY_ENABLED_NOTICE_ES : THL_PROTECT_HISTORY_ENABLED_NOTICE_EN;
+    THL_PROTECT_HISTORY_LEARN_MORE = thl_protectHistoryLanguage === "es" ? THL_PROTECT_HISTORY_LEARN_MORE_ES : THL_PROTECT_HISTORY_LEARN_MORE_EN;
+
+    const navEntry = performance.getEntriesByType("navigation")[0];
+    if (navEntry && navEntry.type === "reload") {
+        sessionStorage.removeItem(THL_PROTECT_HISTORY_SESSION_KEY);
+        sessionStorage.removeItem(THL_PROTECT_HISTORY_DISMISSED_KEY);
+        if (THL_PROTECT_HISTORY_DEBUG_MODE) {
+            console.log("[thl_initProtectHistoryUtility] Reload detected — cleared session state");
+        }
+    }
+
+    if (THL_PROTECT_HISTORY_DEBUG_MODE) {
+        console.log("[thl_initProtectHistoryUtility]Current history protection state:", sessionStorage.getItem(THL_PROTECT_HISTORY_SESSION_KEY));
+    }
+    if (sessionStorage.getItem(THL_PROTECT_HISTORY_SESSION_KEY) === "true") {
+        thl_initProtectHistory();
+    } else if (sessionStorage.getItem(THL_PROTECT_HISTORY_DISMISSED_KEY) !== "true") {
+        thl_createProtectHistoryBar();
+    }
+}
+function thl_injectProtectHistoryCss() {
+    if (THL_PROTECT_HISTORY_DEBUG_MODE) {
+        console.log("[thl_injectProtectHistoryCss] Injecting CSS");
+    }
+    const thl_protectHistoryStyleEle = document.createElement("style");
+    thl_protectHistoryStyleEle.id = "thl-protect-history-css";
+    thl_protectHistoryStyleEle.innerHTML = THL_PROTECT_HISTORY_CSS;
+    document.head.appendChild(thl_protectHistoryStyleEle);
+
+    const scriptTag = [...document.querySelectorAll("script[src]")].find((s) => s.src.includes("thl-protect-history.js"));
+    const params = scriptTag ? new URL(scriptTag.src).searchParams : new URLSearchParams();
+
+    const hexRe = /^[0-9a-fA-F]{6}$/;
+    function resolveColor(paramName, fallback) {
+        const val = params.get(paramName);
+        return val && hexRe.test(val) ? `#${val}` : fallback;
+    }
+
+    const bgColor = resolveColor("bg-color", "#e3e3e3");
+    const textColor = resolveColor("text-color", "#333333");
+    const btnColor = resolveColor("btn-color", "#a93e92");
+
+    const overrideCss = `
+        #thl-protect-history-bar {
+            background-color: ${bgColor};
+            color: ${textColor};
+        }
+        #thl-protect-history-bar button {
+            color: ${btnColor};
+        }
+    `;
+    const thl_protectHistoryOverrideStyleEle = document.createElement("style");
+    thl_protectHistoryOverrideStyleEle.id = "thl-protect-history-override-css";
+    thl_protectHistoryOverrideStyleEle.innerHTML = overrideCss;
+    document.head.appendChild(thl_protectHistoryOverrideStyleEle);
+}
+function thl_createProtectHistoryBar() {
+    if (THL_PROTECT_HISTORY_DEBUG_MODE) {
+        console.log("[thl_initProtectHistoryUtility] Creating protect history bar");
+    }
+    thl_injectProtectHistoryCss();
+    const thl_protectHistoryBar = document.createElement("div");
+    thl_protectHistoryBar.id = "thl-protect-history-bar";
+    thl_protectHistoryBar.innerHTML = THL_PROTECT_HISTORY_NOTICE;
+    document.body.prepend(thl_protectHistoryBar);
+    thl_initProtectHistoryBarButtons();
+    if (THL_PROTECT_HISTORY_DEBUG_MODE) {
+        console.log("[thl_initProtectHistoryUtility] Protect history bar created", thl_protectHistoryBar);
+    }
+}
+
+function thl_updateProtectHistoryBar() {
+    const thl_protectHistoryBar = document.getElementById("thl-protect-history-bar");
+    if (thl_protectHistoryBar) {
+        thl_protectHistoryBar.innerHTML = THL_PROTECT_HISTORY_ENABLED_NOTICE;
+        thl_initProtectHistoryBarButtons();
+    }
+}
+
+function thl_initProtectHistoryBarButtons() {
+    const toggle = document.getElementById("thl-protect-history-toggle");
+    if (toggle) toggle.addEventListener("click", thl_enableHistoryProtection);
+
+    const dismiss = document.getElementById("thl-protect-history-dismiss");
+    if (dismiss) dismiss.addEventListener("click", thl_dismissHistoryProtection);
+
+    const learnMore = document.getElementById("thl-protect-history-learn-more");
+    if (learnMore) learnMore.addEventListener("click", thl_learnMore);
+
+    if (THL_PROTECT_HISTORY_DEBUG_MODE) {
+        console.log("[thl_initProtectHistoryBarButtons] Wired buttons:", { toggle: !!toggle, dismiss: !!dismiss, learnMore: !!learnMore });
+    }
+}
+
+function thl_dismissHistoryProtection() {
+    sessionStorage.setItem(THL_PROTECT_HISTORY_DISMISSED_KEY, "true");
+    const thl_protectHistoryBar = document.getElementById("thl-protect-history-bar");
+    if (thl_protectHistoryBar) {
+        thl_protectHistoryBar.remove();
+    }
+}
+
+function thl_learnMore() {
+    alert(THL_PROTECT_HISTORY_LEARN_MORE);
+}
+
+function thl_enableHistoryProtection() {
+    sessionStorage.setItem(THL_PROTECT_HISTORY_SESSION_KEY, "true");
+
+    thl_updateProtectHistoryBar();
+
+    thl_initProtectHistory();
+}
+
+function thl_initProtectHistory() {
+    thl_overrideWindowOpen();
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", thl_catchClicks);
+    } else {
+        thl_catchClicks();
+    }
+    if (document.readyState === "complete") {
+        thl_catchInlineClickEvents();
+    } else {
+        window.addEventListener("load", thl_catchInlineClickEvents);
+    }
 }
 
 function thl_overrideWindowOpen() {
