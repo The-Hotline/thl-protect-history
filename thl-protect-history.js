@@ -2,8 +2,8 @@
 // National Domestic Violence Hotline Protect History Utility
 // author: Chad Cleveland | National Domestic Violence Hotline | TheHotline.org
 
-// Last Modified: '2026-07-10 13:24';
-const thl_protectHistoryLastModified = '2026-07-10 13:24';
+// Last Modified: '2026-07-10 14:28';
+const thl_protectHistoryLastModified = '2026-07-10 14:28';
 
 /*
 Copyright (c) Effective as of timestamp above. National Domestic Violence Hotline.
@@ -99,7 +99,12 @@ const THL_PROTECT_HISTORY_CSS = `/* National Domestic Violence Hotline - Protect
 }
 `;
 
-thl_initProtectHistoryUtility();
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", thl_initProtectHistoryUtility);
+} else {
+    thl_initProtectHistoryUtility();
+}
+
 function thl_initProtectHistoryUtility() {
     console.log("National Domestic Violence Hotline - Protect History Utility.\n   To implement on your site, contact software@thehotline.org", thl_protectHistoryLastModified);
 
@@ -225,15 +230,41 @@ function thl_enableHistoryProtection() {
 
 function thl_initProtectHistory() {
     thl_overrideWindowOpen();
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", thl_catchClicks);
-    } else {
-        thl_catchClicks();
-    }
-    if (document.readyState === "complete") {
-        thl_catchInlineClickEvents();
-    } else {
-        window.addEventListener("load", thl_catchInlineClickEvents);
+    thl_catchClicks();
+    thl_catchInlineClickEvents();
+    thl_watchForDynamicOnclicks();
+}
+
+function thl_watchForDynamicOnclicks() {
+    const observer = new MutationObserver((mutations) => {
+        let shouldRescan = false;
+        for (const mutation of mutations) {
+            if (mutation.type === "childList" && mutation.addedNodes.length > 0) {
+                shouldRescan = true;
+                break;
+            }
+            if (mutation.type === "attributes" && mutation.attributeName === "onclick") {
+                shouldRescan = true;
+                break;
+            }
+        }
+        if (shouldRescan) {
+            if (THL_PROTECT_HISTORY_DEBUG_MODE) {
+                console.log("[thl_watchForDynamicOnclicks] Mutation detected — rescanning for inline onclicks");
+            }
+            thl_catchInlineClickEvents();
+        }
+    });
+
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["onclick"]
+    });
+
+    if (THL_PROTECT_HISTORY_DEBUG_MODE) {
+        console.log("[thl_watchForDynamicOnclicks] Observer attached to document.body");
     }
 }
 
