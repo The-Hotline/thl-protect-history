@@ -2,8 +2,8 @@
 // National Domestic Violence Hotline Protect History Utility
 // author: Chad Cleveland | National Domestic Violence Hotline | TheHotline.org
 
-// Last Modified: '2026-07-10 14:28';
-const thl_protectHistoryLastModified = '2026-07-10 14:28';
+// Last Modified: '2026-07-10 15:24';
+const thl_protectHistoryLastModified = '2026-07-10 15:24';
 
 /*
 Copyright (c) Effective as of timestamp above. National Domestic Violence Hotline.
@@ -32,6 +32,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
   
   User-intentional new tabs (Ctrl+click, Cmd+click, middle-click, right-click > "Open in new tab", long-press) are respected.
 */
+
+const THL_PROTECT_HISTORY_EXIT_URL = "https://www.live-local-weather.com";
+
 const THL_PROTECT_HISTORY_DEBUG_MODE = true;
 
 const THL_PROTECT_HISTORY_NOTICE_EN = "<span>For added privacy: Hide your history.</span><div class='thl-protect-history-buttons'><button id='thl-protect-history-toggle'>Enable</button> <button id='thl-protect-history-dismiss'>Dismiss</button> <button id='thl-protect-history-learn-more'>Learn More</button></div>";
@@ -52,6 +55,10 @@ let THL_PROTECT_HISTORY_LEARN_MORE = THL_PROTECT_HISTORY_LEARN_MORE_EN;
 
 const THL_PROTECT_HISTORY_SESSION_KEY = "thl_protect_history_enabled";
 const THL_PROTECT_HISTORY_DISMISSED_KEY = "thl_protect_history_dismissed";
+
+let THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR = null;
+let THL_PROTECT_HISTORY_USE_PROVIDED_EXIT = false;
+const thl_protectHistoryWiredExitElements = new WeakSet();
 
 const THL_PROTECT_HISTORY_CSS = `/* National Domestic Violence Hotline - Protect History Utility CSS */
 #thl-protect-history-bar,
@@ -99,6 +106,14 @@ const THL_PROTECT_HISTORY_CSS = `/* National Domestic Violence Hotline - Protect
 }
 `;
 
+let thl_protectHistoryParamsCache = null;
+function thl_getParams() {
+    if (thl_protectHistoryParamsCache) return thl_protectHistoryParamsCache;
+    const scriptTag = [...document.querySelectorAll("script[src]")].find((s) => s.src.includes("thl-protect-history.js"));
+    thl_protectHistoryParamsCache = scriptTag ? new URL(scriptTag.src).searchParams : new URLSearchParams();
+    return thl_protectHistoryParamsCache;
+}
+
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", thl_initProtectHistoryUtility);
 } else {
@@ -115,6 +130,21 @@ function thl_initProtectHistoryUtility() {
     THL_PROTECT_HISTORY_NOTICE = thl_protectHistoryLanguage === "es" ? THL_PROTECT_HISTORY_NOTICE_ES : THL_PROTECT_HISTORY_NOTICE_EN;
     THL_PROTECT_HISTORY_ENABLED_NOTICE = thl_protectHistoryLanguage === "es" ? THL_PROTECT_HISTORY_ENABLED_NOTICE_ES : THL_PROTECT_HISTORY_ENABLED_NOTICE_EN;
     THL_PROTECT_HISTORY_LEARN_MORE = thl_protectHistoryLanguage === "es" ? THL_PROTECT_HISTORY_LEARN_MORE_ES : THL_PROTECT_HISTORY_LEARN_MORE_EN;
+
+    const params = thl_getParams();
+    THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR = params.get("exit-btn-selector") || null;
+    THL_PROTECT_HISTORY_USE_PROVIDED_EXIT = params.get("exit-to-live-local-weather") === "true";
+
+    if (THL_PROTECT_HISTORY_USE_PROVIDED_EXIT && !THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR) {
+        console.warn("[thl_initProtectHistoryUtility] exit-to-live-local-weather=true was set but no exit-btn-selector was provided. Provided exit handler will not be wired.");
+    }
+
+    if (THL_PROTECT_HISTORY_DEBUG_MODE) {
+        console.log("[thl_initProtectHistoryUtility] Exit config:", {
+            selector: THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR,
+            useProvidedExit: THL_PROTECT_HISTORY_USE_PROVIDED_EXIT
+        });
+    }
 
     const navEntry = performance.getEntriesByType("navigation")[0];
     if (navEntry && navEntry.type === "reload") {
@@ -134,6 +164,7 @@ function thl_initProtectHistoryUtility() {
         thl_createProtectHistoryBar();
     }
 }
+
 function thl_injectProtectHistoryCss() {
     if (THL_PROTECT_HISTORY_DEBUG_MODE) {
         console.log("[thl_injectProtectHistoryCss] Injecting CSS");
@@ -143,9 +174,7 @@ function thl_injectProtectHistoryCss() {
     thl_protectHistoryStyleEle.innerHTML = THL_PROTECT_HISTORY_CSS;
     document.head.appendChild(thl_protectHistoryStyleEle);
 
-    const scriptTag = [...document.querySelectorAll("script[src]")].find((s) => s.src.includes("thl-protect-history.js"));
-    const params = scriptTag ? new URL(scriptTag.src).searchParams : new URLSearchParams();
-
+    const params = thl_getParams();
     const hexRe = /^[0-9a-fA-F]{6}$/;
     function resolveColor(paramName, fallback) {
         const val = params.get(paramName);
@@ -232,9 +261,38 @@ function thl_initProtectHistory() {
     thl_overrideWindowOpen();
     thl_catchClicks();
     thl_catchInlineClickEvents();
+    thl_wireProvidedExit();
     thl_watchForDynamicOnclicks();
 }
+function thl_wireProvidedExit() {
+    if (!THL_PROTECT_HISTORY_USE_PROVIDED_EXIT || !THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR) return;
 
+    let elements;
+    try {
+        elements = document.querySelectorAll(THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR);
+    } catch (err) {
+        console.warn("[thl_wireProvidedExit] Invalid selector:", THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR, err);
+        return;
+    }
+
+    elements.forEach((el) => {
+        if (thl_protectHistoryWiredExitElements.has(el)) return;
+        thl_protectHistoryWiredExitElements.add(el);
+
+        el.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            if (THL_PROTECT_HISTORY_DEBUG_MODE) {
+                console.log("[thl_wireProvidedExit] Provided exit handler firing — navigating to", THL_PROTECT_HISTORY_EXIT_URL);
+            }
+            location.replace(THL_PROTECT_HISTORY_EXIT_URL);
+        }, { capture: true });
+
+        if (THL_PROTECT_HISTORY_DEBUG_MODE) {
+            console.log("[thl_wireProvidedExit] Wired exit handler on:", el);
+        }
+    });
+}
 function thl_watchForDynamicOnclicks() {
     const observer = new MutationObserver((mutations) => {
         let shouldRescan = false;
@@ -250,9 +308,10 @@ function thl_watchForDynamicOnclicks() {
         }
         if (shouldRescan) {
             if (THL_PROTECT_HISTORY_DEBUG_MODE) {
-                console.log("[thl_watchForDynamicOnclicks] Mutation detected — rescanning for inline onclicks");
+                console.log("[thl_watchForDynamicOnclicks] Mutation detected — rescanning");
             }
             thl_catchInlineClickEvents();
+            thl_wireProvidedExit();
         }
     });
 
@@ -267,7 +326,6 @@ function thl_watchForDynamicOnclicks() {
         console.log("[thl_watchForDynamicOnclicks] Observer attached to document.body");
     }
 }
-
 function thl_overrideWindowOpen() {
     /* 
       Intercept window.open — forces any programmatic new-tab navigation into the same tab via location.replace().
@@ -289,6 +347,17 @@ function thl_overrideWindowOpen() {
     }
 }
 
+
+function thl_isExcludedFromInterception(element) {
+    if (!THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR) return false;
+    try {
+        return !!element.closest(THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR);
+    } catch (err) {
+        console.warn("[thl_isExcludedFromInterception] Invalid selector — treating as no exclusion:", THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR, err);
+        return false;
+    }
+}
+
 /* 
   Intercept all link clicks via event delegation.
   Skips user-intentional new tabs, downloads, and non-navigable hrefs.
@@ -299,6 +368,9 @@ function thl_catchClicks() {
         try {
             const link = e.target.closest("a[href]");
             if (!link) return;
+
+            // Skip elements matching exit-btn-selector — let their own handlers run
+            if (thl_isExcludedFromInterception(link)) return;
 
             // Respect user-intentional new tabs: keyboard modifier or middle-click
             if (e.ctrlKey || e.metaKey || e.button === 1) return;
@@ -318,7 +390,6 @@ function thl_catchClicks() {
         }
     });
 }
-
 /*
   Scrub inline onclick handlers containing location.href.
   Removes the inline handler and replaces it with a location.replace() listener.
@@ -328,6 +399,9 @@ function thl_catchClicks() {
 function thl_catchInlineClickEvents() {
     document.querySelectorAll("[onclick]").forEach((el) => {
         try {
+            // Skip elements matching exit-btn-selector — let their own handlers run
+            if (thl_isExcludedFromInterception(el)) return;
+
             const handler = el.getAttribute("onclick");
             if (!handler.includes("location.href")) return;
 
@@ -346,7 +420,6 @@ function thl_catchInlineClickEvents() {
         }
     });
 }
-
 /*
   Extracts a plain string URL from an onclick attribute value containing a location.href assignment. Uses the browser's URL parser for validation rather than regex. Returns null if the URL cannot be safely determined.
 */
