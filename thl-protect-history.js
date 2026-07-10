@@ -2,8 +2,8 @@
 // National Domestic Violence Hotline Protect History Utility
 // author: Chad Cleveland | National Domestic Violence Hotline | TheHotline.org
 
-// Last Modified: '2026-07-10 15:24';
-const thl_protectHistoryLastModified = '2026-07-10 15:24';
+// Last Modified: '2026-07-10 15:47';
+const thl_protectHistoryLastModified = '2026-07-10 15:47';
 
 /*
 Copyright (c) Effective as of timestamp above. National Domestic Violence Hotline.
@@ -158,10 +158,16 @@ function thl_initProtectHistoryUtility() {
     if (THL_PROTECT_HISTORY_DEBUG_MODE) {
         console.log("[thl_initProtectHistoryUtility]Current history protection state:", sessionStorage.getItem(THL_PROTECT_HISTORY_SESSION_KEY));
     }
-    if (sessionStorage.getItem(THL_PROTECT_HISTORY_SESSION_KEY) === "true") {
+    const isEnabled = sessionStorage.getItem(THL_PROTECT_HISTORY_SESSION_KEY) === "true";
+    const isDismissed = sessionStorage.getItem(THL_PROTECT_HISTORY_DISMISSED_KEY) === "true";
+
+    if (isEnabled) {
         thl_initProtectHistory();
-    } else if (sessionStorage.getItem(THL_PROTECT_HISTORY_DISMISSED_KEY) !== "true") {
-        thl_createProtectHistoryBar();
+        if (!isDismissed) {
+            thl_createProtectHistoryBar(THL_PROTECT_HISTORY_ENABLED_NOTICE);
+        }
+    } else if (!isDismissed) {
+        thl_createProtectHistoryBar(THL_PROTECT_HISTORY_NOTICE);
     }
 }
 
@@ -199,14 +205,14 @@ function thl_injectProtectHistoryCss() {
     thl_protectHistoryOverrideStyleEle.innerHTML = overrideCss;
     document.head.appendChild(thl_protectHistoryOverrideStyleEle);
 }
-function thl_createProtectHistoryBar() {
+function thl_createProtectHistoryBar(noticeHtml) {
     if (THL_PROTECT_HISTORY_DEBUG_MODE) {
         console.log("[thl_initProtectHistoryUtility] Creating protect history bar");
     }
     thl_injectProtectHistoryCss();
     const thl_protectHistoryBar = document.createElement("div");
     thl_protectHistoryBar.id = "thl-protect-history-bar";
-    thl_protectHistoryBar.innerHTML = THL_PROTECT_HISTORY_NOTICE;
+    thl_protectHistoryBar.innerHTML = noticeHtml;
     document.body.prepend(thl_protectHistoryBar);
     thl_initProtectHistoryBarButtons();
     if (THL_PROTECT_HISTORY_DEBUG_MODE) {
@@ -279,14 +285,18 @@ function thl_wireProvidedExit() {
         if (thl_protectHistoryWiredExitElements.has(el)) return;
         thl_protectHistoryWiredExitElements.add(el);
 
-        el.addEventListener("click", (e) => {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            if (THL_PROTECT_HISTORY_DEBUG_MODE) {
-                console.log("[thl_wireProvidedExit] Provided exit handler firing — navigating to", THL_PROTECT_HISTORY_EXIT_URL);
-            }
-            location.replace(THL_PROTECT_HISTORY_EXIT_URL);
-        }, { capture: true });
+        el.addEventListener(
+            "click",
+            (e) => {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                if (THL_PROTECT_HISTORY_DEBUG_MODE) {
+                    console.log("[thl_wireProvidedExit] Provided exit handler firing — navigating to", THL_PROTECT_HISTORY_EXIT_URL);
+                }
+                location.replace(THL_PROTECT_HISTORY_EXIT_URL);
+            },
+            { capture: true }
+        );
 
         if (THL_PROTECT_HISTORY_DEBUG_MODE) {
             console.log("[thl_wireProvidedExit] Wired exit handler on:", el);
@@ -346,7 +356,6 @@ function thl_overrideWindowOpen() {
         console.warn(`[thl_catchClicks] failed to initialize`, err);
     }
 }
-
 
 function thl_isExcludedFromInterception(element) {
     if (!THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR) return false;
