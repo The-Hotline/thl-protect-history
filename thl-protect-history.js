@@ -2,8 +2,8 @@
 // National Domestic Violence Hotline Protect History Utility
 // author: Chad Cleveland | National Domestic Violence Hotline | TheHotline.org
 
-// Last Modified: '2026-07-10 15:47';
-const thl_protectHistoryLastModified = '2026-07-10 15:47';
+// Last Modified: '2026-07-10 16:18';
+const thl_protectHistoryLastModified = '2026-07-10 16:18';
 
 /*
 Copyright (c) Effective as of timestamp above. National Domestic Violence Hotline.
@@ -95,7 +95,7 @@ const THL_PROTECT_HISTORY_CSS = `/* National Domestic Violence Hotline - Protect
 #thl-protect-history-bar button {
     color: #a93e92;
     font-family: inherit;
-    font-size: 14px;
+    font-size: 13px;
     border: none;
     background: none;
     text-decoration: underline;
@@ -303,6 +303,20 @@ function thl_wireProvidedExit() {
         }
     });
 }
+
+function thl_bustCacheAndReplace(rawHref) {
+    try {
+        const url = new URL(rawHref, location.href);
+        if (url.origin === location.origin) {
+            url.searchParams.set("_thl", thl_protectHistoryLastModified.split(" ")[0]);
+        }
+        location.replace(url.href);
+    } catch (err) {
+        console.warn("[thl_bustCacheAndReplace] URL construction failed, falling back to raw replace:", rawHref, err);
+        location.replace(rawHref);
+    }
+}
+
 function thl_watchForDynamicOnclicks() {
     const observer = new MutationObserver((mutations) => {
         let shouldRescan = false;
@@ -346,7 +360,7 @@ function thl_overrideWindowOpen() {
         if (!isGtmDebug) {
             window.open = (url) => {
                 try {
-                    if (url) location.replace(url);
+                    if (url) thl_bustCacheAndReplace(url);
                 } catch (err) {
                     console.warn("[thl_catchClicks] window.open intercept failed:", err);
                 }
@@ -393,7 +407,7 @@ function thl_catchClicks() {
             if (!href || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) return;
 
             e.preventDefault();
-            location.replace(href);
+            thl_bustCacheAndReplace(href);
         } catch (err) {
             console.warn("[thl_catchClicks] click intercept failed:", err);
         }
@@ -421,7 +435,7 @@ function thl_catchInlineClickEvents() {
                 el.addEventListener("click", (e) => {
                     if (e.ctrlKey || e.metaKey || e.button === 1) return;
                     e.preventDefault();
-                    location.replace(url);
+                    thl_bustCacheAndReplace(url);
                 });
             }
         } catch (err) {
