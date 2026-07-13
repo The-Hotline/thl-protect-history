@@ -2,8 +2,8 @@
 // National Domestic Violence Hotline Protect History Utility
 // author: Chad Cleveland | National Domestic Violence Hotline | TheHotline.org
 
-// Last Modified: '2026-07-10 16:18';
-const thl_protectHistoryLastModified = '2026-07-10 16:18';
+// Last Modified: '2026-07-13 09:53';
+const thl_protectHistoryLastModified = '2026-07-13 09:53';
 
 /*
 Copyright (c) Effective as of timestamp above. National Domestic Violence Hotline.
@@ -22,7 +22,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
   Ensures that visits to TheHotline.org properties do not accumulate in the browser's history, protecting survivors who may share a device with an abuser.
   
   Achieved by replacing all same-tab navigations and coded new-tab navigations with location.replace(), which overwrites the current history entry rather than pushing a new one. By the time a visitor uses the safety exit button, there is no history stack to trace back.
-  
+
+  Safety exit:
+  - Safety exit buttons will be affected in most implementations. Identify your safety exit button with the exit-btn-selector query parameter — the utility will clear session state and navigate to https://live-local-weather.com when clicked.
+  - To keep your exit button's existing behavior, add exit-to-live-local-weather=false to the query string; the utility will still clear session state on click, but will not redirect.
+  - If exit integration is genuinely not needed, set exit-btn-selector=false to acknowledge this and silence the console warning.
+    
   Known limitations:
   - Global event listeners added via addEventListener that use location.href = or location.assign() are not interceptable by this utility. Avoid using them in any code on these pages.
   - history.pushState() / history.replaceState() are not intercepted. Avoid using them, or override them explicitly if third-party code uses them.
@@ -57,7 +62,7 @@ const THL_PROTECT_HISTORY_SESSION_KEY = "thl_protect_history_enabled";
 const THL_PROTECT_HISTORY_DISMISSED_KEY = "thl_protect_history_dismissed";
 
 let THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR = null;
-let THL_PROTECT_HISTORY_USE_PROVIDED_EXIT = false;
+let THL_PROTECT_EXIT_TO_LLW = true;
 const thl_protectHistoryWiredExitElements = new WeakSet();
 
 const THL_PROTECT_HISTORY_CSS = `/* National Domestic Violence Hotline - Protect History Utility CSS */
@@ -132,17 +137,23 @@ function thl_initProtectHistoryUtility() {
     THL_PROTECT_HISTORY_LEARN_MORE = thl_protectHistoryLanguage === "es" ? THL_PROTECT_HISTORY_LEARN_MORE_ES : THL_PROTECT_HISTORY_LEARN_MORE_EN;
 
     const params = thl_getParams();
-    THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR = params.get("exit-btn-selector") || null;
-    THL_PROTECT_HISTORY_USE_PROVIDED_EXIT = params.get("exit-to-live-local-weather") === "true";
 
-    if (THL_PROTECT_HISTORY_USE_PROVIDED_EXIT && !THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR) {
-        console.warn("[thl_initProtectHistoryUtility] exit-to-live-local-weather=true was set but no exit-btn-selector was provided. Provided exit handler will not be wired.");
+    const rawSelector = params.get("exit-btn-selector");
+    if (rawSelector === null) {
+        console.warn("[thl_initProtectHistoryUtility] exit-btn-selector is required. Provide a CSS selector for your exit button, or set exit-btn-selector=false to explicitly opt out of exit integration.");
+        THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR = null;
+    } else if (rawSelector === "false") {
+        THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR = null;
+    } else {
+        THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR = rawSelector;
     }
+
+    THL_PROTECT_EXIT_TO_LLW = params.get("exit-to-live-local-weather") !== "false";
 
     if (THL_PROTECT_HISTORY_DEBUG_MODE) {
         console.log("[thl_initProtectHistoryUtility] Exit config:", {
             selector: THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR,
-            useProvidedExit: THL_PROTECT_HISTORY_USE_PROVIDED_EXIT
+            exitToLlw: THL_PROTECT_EXIT_TO_LLW
         });
     }
 
@@ -267,17 +278,24 @@ function thl_initProtectHistory() {
     thl_overrideWindowOpen();
     thl_catchClicks();
     thl_catchInlineClickEvents();
-    thl_wireProvidedExit();
+    thl_handleExit();
     thl_watchForDynamicOnclicks();
 }
-function thl_wireProvidedExit() {
-    if (!THL_PROTECT_HISTORY_USE_PROVIDED_EXIT || !THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR) return;
+function thl_clearProtectHistorySession() {
+    sessionStorage.removeItem(THL_PROTECT_HISTORY_SESSION_KEY);
+    sessionStorage.removeItem(THL_PROTECT_HISTORY_DISMISSED_KEY);
+    if (THL_PROTECT_HISTORY_DEBUG_MODE) {
+        console.log("[thl_clearProtectHistorySession] Session state cleared");
+    }
+}
+function thl_handleExit() {
+    if (!THL_PROTECT_EXIT_TO_LLW || !THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR) return;
 
     let elements;
     try {
         elements = document.querySelectorAll(THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR);
     } catch (err) {
-        console.warn("[thl_wireProvidedExit] Invalid selector:", THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR, err);
+        console.warn("[thl_handleExit] Invalid selector:", THL_PROTECT_HISTORY_EXIT_BTN_SELECTOR, err);
         return;
     }
 
@@ -290,8 +308,9 @@ function thl_wireProvidedExit() {
             (e) => {
                 e.preventDefault();
                 e.stopImmediatePropagation();
+                thl_clearProtectHistorySession();
                 if (THL_PROTECT_HISTORY_DEBUG_MODE) {
-                    console.log("[thl_wireProvidedExit] Provided exit handler firing — navigating to", THL_PROTECT_HISTORY_EXIT_URL);
+                    console.log("[thl_handleExit] Exit handler firing — navigating to", THL_PROTECT_HISTORY_EXIT_URL);
                 }
                 location.replace(THL_PROTECT_HISTORY_EXIT_URL);
             },
@@ -299,7 +318,7 @@ function thl_wireProvidedExit() {
         );
 
         if (THL_PROTECT_HISTORY_DEBUG_MODE) {
-            console.log("[thl_wireProvidedExit] Wired exit handler on:", el);
+            console.log("[thl_handleExit] Wired exit handler on:", el);
         }
     });
 }
@@ -335,7 +354,7 @@ function thl_watchForDynamicOnclicks() {
                 console.log("[thl_watchForDynamicOnclicks] Mutation detected — rescanning");
             }
             thl_catchInlineClickEvents();
-            thl_wireProvidedExit();
+            thl_handleExit();
         }
     });
 
@@ -393,8 +412,10 @@ function thl_catchClicks() {
             if (!link) return;
 
             // Skip elements matching exit-btn-selector — let their own handlers run
-            if (thl_isExcludedFromInterception(link)) return;
-
+            if (thl_isExcludedFromInterception(link)) {
+                thl_clearProtectHistorySession();
+                return;
+            }
             // Respect user-intentional new tabs: keyboard modifier or middle-click
             if (e.ctrlKey || e.metaKey || e.button === 1) return;
 
@@ -423,7 +444,10 @@ function thl_catchInlineClickEvents() {
     document.querySelectorAll("[onclick]").forEach((el) => {
         try {
             // Skip elements matching exit-btn-selector — let their own handlers run
-            if (thl_isExcludedFromInterception(el)) return;
+            if (thl_isExcludedFromInterception(el)) {
+                el.addEventListener("click", thl_clearProtectHistorySession, { capture: true });
+                return;
+            }
 
             const handler = el.getAttribute("onclick");
             if (!handler.includes("location.href")) return;
